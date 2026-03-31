@@ -26,8 +26,6 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
   const { user, pass } = req.body;
 
-  if (users[user]) return res.send("User exists");
-
   users[user] = {
     password: pass,
     data: { energy: 0, voltage: 0, power: 0, steps: 0 },
@@ -68,10 +66,8 @@ function auth(req, res, next) {
   next();
 }
 
-// ---------------- UPDATE DATA ----------------
+// ---------------- UPDATE ----------------
 app.post("/update", (req, res) => {
-  if (!currentUser) return res.send("No user");
-
   let u = users[currentUser];
   u.data = req.body;
 
@@ -85,136 +81,125 @@ app.post("/update", (req, res) => {
   res.send("OK");
 });
 
-// ---------------- USER DATA ----------------
-app.get("/user-data", (req, res) => {
-  res.json(users[currentUser]?.data || {});
-});
+// ---------------- DATA ----------------
+app.get("/user-data", (req, res) => res.json(users[currentUser]?.data || {}));
+app.get("/history", (req, res) => res.json(users[currentUser]?.history || []));
 
-// ---------------- LEADERBOARD ----------------
-app.get("/leaderboard-data", (req, res) => {
-  let board = Object.entries(users).map(([name, u]) => ({
-    name,
-    energy: u.data.energy
-  }));
-
-  board.sort((a, b) => b.energy - a.energy);
-  res.json(board);
-});
-
-// ---------------- HISTORY DATA ----------------
-app.get("/history", (req, res) => {
-  res.json(users[currentUser]?.history || []);
-});
-
-// ---------------- COMMON NAVBAR ----------------
-function navbar() {
+// ---------------- SIDEBAR LAYOUT ----------------
+function layout(content, active) {
   return `
-    <div style="padding:15px;background:#5b6ee1;color:white;display:flex;justify-content:space-between;">
-      <div>⚡ Energy App</div>
-      <div>
-        <a href="/" style="color:white;margin-right:10px;">Dashboard</a>
-        <a href="/history-page" style="color:white;margin-right:10px;">History</a>
-        <a href="/challenge" style="color:white;margin-right:10px;">Goal</a>
-        <a href="/qr" style="color:white;">QR</a>
-      </div>
+  <html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        margin:0;
+        font-family:'Segoe UI';
+        display:flex;
+        background:#f4f6fb;
+      }
+
+      .sidebar {
+        width:220px;
+        background:#5b6ee1;
+        color:white;
+        height:100vh;
+        padding:20px;
+      }
+
+      .sidebar h2 {
+        margin-bottom:20px;
+      }
+
+      .sidebar a {
+        display:block;
+        color:white;
+        text-decoration:none;
+        margin:10px 0;
+        padding:10px;
+        border-radius:8px;
+        background:${active==="none"?"transparent":"transparent"};
+      }
+
+      .sidebar a.active {
+        background:white;
+        color:#5b6ee1;
+      }
+
+      .main {
+        flex:1;
+        padding:20px;
+      }
+
+      .cards {
+        display:flex;
+        gap:20px;
+        flex-wrap:wrap;
+      }
+
+      .card {
+        background:white;
+        padding:20px;
+        border-radius:12px;
+        flex:1;
+        min-width:200px;
+      }
+
+      .value {
+        font-size:26px;
+        font-weight:bold;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div class="sidebar">
+      <h2>⚡ Energy</h2>
+      <a href="/" class="${active==="dash"?"active":""}">Dashboard</a>
+      <a href="/history-page" class="${active==="hist"?"active":""}">History</a>
+      <a href="/challenge" class="${active==="goal"?"active":""}">Goal</a>
+      <a href="/qr" class="${active==="qr"?"active":""}">QR</a>
     </div>
+
+    <div class="main">
+      ${content}
+    </div>
+
+  </body>
+  </html>
   `;
 }
 
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, (req, res) => {
-  res.send(`
-  <html>
-  <head>
-    <style>
-      body {
-        font-family:'Segoe UI';
-        margin:0;
-        background: linear-gradient(135deg,#5b6ee1,#7c3aed);
-        color:white;
-      }
-      .dark { background:#121212; }
-      .container { padding:20px; }
-      .cards { display:flex; gap:20px; flex-wrap:wrap; }
-      .card {
-        background:rgba(255,255,255,0.15);
-        padding:20px;
-        border-radius:15px;
-        flex:1;
-        min-width:200px;
-      }
-      .value { font-size:28px; font-weight:bold; }
-    </style>
-  </head>
+  res.send(layout(`
+    <h2>Dashboard</h2>
 
-  <body id="body">
-
-    ${navbar()}
-
-    <div class="container">
-
-      <button onclick="toggleDark()">🌙 Toggle</button>
-
-      <div class="cards">
-        <div class="card"><div>Energy</div><div id="energy" class="value">0</div></div>
-        <div class="card"><div>Power</div><div id="power" class="value">0</div></div>
-        <div class="card"><div>Voltage</div><div id="voltage" class="value">0</div></div>
-        <div class="card"><div>Steps</div><div id="steps" class="value">0</div></div>
-        <div class="card"><div>Efficiency</div><div id="eff" class="value">0%</div></div>
-      </div>
-
-      <div class="card">
-        <h3>🏆 Leaderboard</h3>
-        <ul id="board"></ul>
-      </div>
-
+    <div class="cards">
+      <div class="card">Energy<br><span id="energy" class="value">0</span></div>
+      <div class="card">Power<br><span id="power" class="value">0</span></div>
+      <div class="card">Voltage<br><span id="voltage" class="value">0</span></div>
     </div>
 
     <script>
-      function toggleDark(){
-        document.body.classList.toggle("dark");
-      }
-
       async function load(){
         let d = await fetch('/user-data').then(r=>r.json());
-
-        document.getElementById("energy").innerText = (d.energy||0).toFixed(4);
-        document.getElementById("power").innerText = (d.power||0).toFixed(4);
+        document.getElementById("energy").innerText = (d.energy||0).toFixed(2);
+        document.getElementById("power").innerText = (d.power||0).toFixed(2);
         document.getElementById("voltage").innerText = (d.voltage||0).toFixed(2);
-        document.getElementById("steps").innerText = d.steps||0;
-
-        let eff = d.steps > 0 ? (d.energy / d.steps)*100 : 0;
-        document.getElementById("eff").innerText = eff.toFixed(2)+"%";
-
-        let board = await fetch('/leaderboard-data').then(r=>r.json());
-        let list = document.getElementById("board");
-        list.innerHTML = "";
-
-        board.forEach((u,i)=>{
-          list.innerHTML += "<li>"+(i+1)+". "+u.name+" - "+u.energy.toFixed(2)+" J</li>";
-        });
       }
-
       setInterval(load,2000);
     </script>
-
-  </body>
-  </html>
-  `);
+  `,"dash"));
 });
 
-// ---------------- HISTORY PAGE ----------------
+// ---------------- HISTORY ----------------
 app.get("/history-page", auth, (req, res) => {
-  res.send(`
-  <html>
-  <body>
-
-    ${navbar()}
-
-    <h2>📊 History</h2>
+  res.send(layout(`
+    <h2>Analytics</h2>
     <canvas id="chart"></canvas>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       async function load(){
         let data = await fetch('/history').then(r=>r.json());
@@ -229,23 +214,15 @@ app.get("/history-page", auth, (req, res) => {
       }
       load();
     </script>
-
-  </body>
-  </html>
-  `);
+  `,"hist"));
 });
 
-// ---------------- CHALLENGE ----------------
+// ---------------- GOAL ----------------
 app.get("/challenge", auth, (req, res) => {
   let goal = users[currentUser].goal;
 
-  res.send(`
-  <html>
-  <body>
-
-    ${navbar()}
-
-    <h2>🎯 Goal</h2>
+  res.send(layout(`
+    <h2>Goal</h2>
     <p>Target: ${goal} J</p>
     <p id="progress"></p>
 
@@ -257,29 +234,18 @@ app.get("/challenge", auth, (req, res) => {
       }
       setInterval(load,2000);
     </script>
-
-  </body>
-  </html>
-  `);
+  `,"goal"));
 });
 
 // ---------------- QR ----------------
 app.get("/qr", (req, res) => {
   const url = req.protocol + "://" + req.get("host");
 
-  res.send(`
-  <html>
-  <body>
-
-    ${navbar()}
-
-    <h2>📱 Scan QR</h2>
+  res.send(layout(`
+    <h2>Scan QR</h2>
     <p>${url}</p>
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${url}" />
-
-  </body>
-  </html>
-  `);
+  `,"qr"));
 });
 
 app.listen(PORT, () => console.log("Server running"));
