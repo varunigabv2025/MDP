@@ -1,86 +1,71 @@
 const express = require("express");
 const app = express();
 
+// 🔴 IMPORTANT: use Render port
+const PORT = process.env.PORT || 3000;
+
 app.use(express.json());
 
+// Data storage
 let dataStore = {
   P1: 0,
   P2: 0,
   P3: 0
 };
 
-// Receive data from Node.js
+// Receive data from your laptop (Node.js)
 app.post("/update", (req, res) => {
   dataStore = req.body;
   res.send("OK");
 });
 
-// Dashboard UI
-app.get("/", (req, res) => {
-  res.send(`
-  <html>
-  <head>
-    <title>Energy Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-
-  <body style="font-family: Arial; text-align:center; background:#0f172a; color:white;">
-
-    <h1>⚡ Energy Harvesting System</h1>
-
-    <h2 id="status">Status: Disconnected</h2>
-
-    <h2>Total Energy</h2>
-    <h1 id="total">0</h1>
-
-    <canvas id="chart" width="400" height="200"></canvas>
-
-    <script>
-      let chart;
-
-      async function fetchData() {
-        const res = await fetch("/data");
-        const data = await res.json();
-
-        let total = data.P1 + data.P2 + data.P3;
-
-        document.getElementById("total").innerText = total.toFixed(6) + " J";
-
-        // Status
-        document.getElementById("status").innerText =
-          total > 0 ? "Status: Connected" : "Status: Waiting";
-
-        // Graph
-        if (!chart) {
-          const ctx = document.getElementById("chart").getContext("2d");
-          chart = new Chart(ctx, {
-            type: "bar",
-            data: {
-              labels: ["Person 1", "Person 2", "Person 3"],
-              datasets: [{
-                label: "Energy (J)",
-                data: [data.P1, data.P2, data.P3]
-              }]
-            }
-          });
-        } else {
-          chart.data.datasets[0].data = [data.P1, data.P2, data.P3];
-          chart.update();
-        }
-      }
-
-      // Auto update every 2 sec
-      setInterval(fetchData, 2000);
-    </script>
-
-  </body>
-  </html>
-  `);
-});
-
-// API to send data to frontend
+// Send data to frontend
 app.get("/data", (req, res) => {
   res.json(dataStore);
 });
 
-app.listen(3000, () => console.log("Server running"));
+// Dashboard UI
+app.get("/", (req, res) => {
+  res.send(`
+    <html>
+    <head>
+      <title>Energy Dashboard</title>
+    </head>
+
+    <body style="font-family: Arial; text-align:center;">
+
+      <h1>⚡ Energy Harvesting System</h1>
+
+      <h2 id="status">Status: Waiting</h2>
+
+      <h3>Person 1: <span id="p1">0</span></h3>
+      <h3>Person 2: <span id="p2">0</span></h3>
+      <h3>Person 3: <span id="p3">0</span></h3>
+
+      <script>
+        async function updateData() {
+          const res = await fetch("/data");
+          const data = await res.json();
+
+          document.getElementById("p1").innerText = data.P1.toFixed(6);
+          document.getElementById("p2").innerText = data.P2.toFixed(6);
+          document.getElementById("p3").innerText = data.P3.toFixed(6);
+
+          let total = data.P1 + data.P2 + data.P3;
+
+          document.getElementById("status").innerText =
+            total > 0 ? "Status: Connected" : "Status: Waiting";
+        }
+
+        setInterval(updateData, 2000);
+      </script>
+
+    </body>
+    </html>
+  `);
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
