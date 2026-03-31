@@ -1,0 +1,38 @@
+{
+  "name": "piezoelectric-energy-harvesting",
+  "version": "1.0.0",
+  "description": "Piezoelectric Energy Harvesting System with Web Integration",
+  "main": "serial_server.js",
+  "scripts": {
+    "start": "node serial_server.js",
+    "dev": "node serial_server.js",
+    "install-deps": "npm install"
+  },
+  "keywords": [
+    "energy-harvesting",
+    "piezoelectric",
+    "arduino",
+    "web-dashboard",
+    "serial-communication",
+    "iot"
+  ],
+  "author": "Energy Harvesting Project",
+  "license": "MIT",
+  "dependencies": {
+    "serialport": "^10.5.0",
+    "@serialport/parser-readline": "^10.5.0",
+    "ws": "^8.14.2",
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/piezoelectric-energy-harvesting.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/piezoelectric-energy-harvesting/issues"
+  },
+  "homepage": "https://github.com/your-username/piezoelectric-energy-harvesting#readme"
+}
