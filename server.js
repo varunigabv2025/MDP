@@ -15,8 +15,8 @@ app.get("/register", (req, res) => {
   res.send(`
     <h2>Register</h2>
     <form method="POST">
-      <input name="user" required/><br><br>
-      <input name="pass" type="password" required/><br><br>
+      <input name="user" placeholder="Username" required/><br><br>
+      <input name="pass" type="password" placeholder="Password" required/><br><br>
       <button>Register</button>
     </form>
     <a href="/login">Login</a>
@@ -25,6 +25,8 @@ app.get("/register", (req, res) => {
 
 app.post("/register", (req, res) => {
   const { user, pass } = req.body;
+
+  if (users[user]) return res.send("User already exists");
 
   users[user] = {
     password: pass,
@@ -41,8 +43,8 @@ app.get("/login", (req, res) => {
   res.send(`
     <h2>Login</h2>
     <form method="POST">
-      <input name="user"/><br><br>
-      <input name="pass" type="password"/><br><br>
+      <input name="user" required/><br><br>
+      <input name="pass" type="password" required/><br><br>
       <button>Login</button>
     </form>
     <a href="/register">Register</a>
@@ -66,8 +68,10 @@ function auth(req, res, next) {
   next();
 }
 
-// ---------------- UPDATE ----------------
+// ---------------- UPDATE DATA ----------------
 app.post("/update", (req, res) => {
+  if (!currentUser) return res.send("No user");
+
   let u = users[currentUser];
   u.data = req.body;
 
@@ -81,11 +85,23 @@ app.post("/update", (req, res) => {
   res.send("OK");
 });
 
-// ---------------- DATA ----------------
+// ---------------- USER DATA ----------------
 app.get("/user-data", (req, res) => {
   res.json(users[currentUser]?.data || {});
 });
 
+// ---------------- LEADERBOARD ----------------
+app.get("/leaderboard-data", (req, res) => {
+  let board = Object.entries(users).map(([name, u]) => ({
+    name,
+    energy: u.data.energy
+  }));
+
+  board.sort((a, b) => b.energy - a.energy);
+  res.json(board);
+});
+
+// ---------------- HISTORY DATA ----------------
 app.get("/history", (req, res) => {
   res.json(users[currentUser]?.history || []);
 });
@@ -96,39 +112,161 @@ app.get("/", auth, (req, res) => {
   <html>
   <head>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-      body { font-family:Arial; margin:0; background:#f4f6fb; }
-      .nav { padding:15px; background:#5b6ee1; color:white; }
-      .container { padding:20px; }
-      .card { background:white; padding:15px; margin:10px 0; border-radius:10px; }
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        margin:0;
+        background: linear-gradient(135deg,#5b6ee1,#7c3aed);
+        color:white;
+      }
+
+      .dark {
+        background:#121212;
+      }
+
+      .nav {
+        padding:15px;
+        display:flex;
+        justify-content:space-between;
+      }
+
+      .nav a {
+        color:white;
+        margin-left:15px;
+        text-decoration:none;
+      }
+
+      .container {
+        padding:20px;
+      }
+
+      .cards {
+        display:flex;
+        gap:20px;
+        flex-wrap:wrap;
+      }
+
+      .card {
+        flex:1;
+        min-width:200px;
+        background:rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        padding:20px;
+        border-radius:15px;
+        transition:0.3s;
+      }
+
+      .card:hover {
+        transform:translateY(-5px) scale(1.02);
+      }
+
+      .value {
+        font-size:28px;
+        font-weight:bold;
+      }
+
+      .toast {
+        position:fixed;
+        bottom:20px;
+        right:20px;
+        background:#333;
+        padding:15px;
+        border-radius:10px;
+        display:none;
+      }
     </style>
   </head>
 
-  <body>
+  <body id="body">
 
     <div class="nav">
-      ⚡ Energy System |
-      <a href="/history-page">History</a> |
-      <a href="/challenge">Challenge</a> |
-      <a href="/qr">QR</a>
+      <div>⚡ Energy Dashboard</div>
+      <div>
+        <a href="/history-page">History</a>
+        <a href="/challenge">Challenge</a>
+        <a href="/qr">QR</a>
+        <button onclick="toggleDark()">🌙</button>
+      </div>
     </div>
 
     <div class="container">
 
-      <div class="card">Energy: <span id="energy">0</span></div>
-      <div class="card">Power: <span id="power">0</span></div>
-      <div class="card">Voltage: <span id="voltage">0</span></div>
+      <div class="cards">
+
+        <div class="card">
+          <div>Energy</div>
+          <div id="energy" class="value">0</div>
+        </div>
+
+        <div class="card">
+          <div>Power</div>
+          <div id="power" class="value">0</div>
+        </div>
+
+        <div class="card">
+          <div>Voltage</div>
+          <div id="voltage" class="value">0</div>
+        </div>
+
+        <div class="card">
+          <div>Steps</div>
+          <div id="steps" class="value">0</div>
+        </div>
+
+        <div class="card">
+          <div>Efficiency</div>
+          <div id="eff" class="value">0%</div>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <h3>🏆 Leaderboard</h3>
+        <ul id="board"></ul>
+      </div>
 
     </div>
 
+    <div id="toast" class="toast"></div>
+
     <script>
+      function toggleDark(){
+        document.body.classList.toggle("dark");
+      }
+
+      function showToast(msg){
+        let t = document.getElementById("toast");
+        t.innerText = msg;
+        t.style.display = "block";
+        setTimeout(()=> t.style.display="none",2000);
+      }
+
       async function load(){
         let d = await fetch('/user-data').then(r=>r.json());
 
-        document.getElementById("energy").innerText = d.energy || 0;
-        document.getElementById("power").innerText = d.power || 0;
-        document.getElementById("voltage").innerText = d.voltage || 0;
+        document.getElementById("energy").innerText = (d.energy||0).toFixed(4);
+        document.getElementById("power").innerText = (d.power||0).toFixed(4);
+        document.getElementById("voltage").innerText = (d.voltage||0).toFixed(2);
+        document.getElementById("steps").innerText = d.steps||0;
+
+        let eff = d.steps > 0 ? (d.energy / d.steps)*100 : 0;
+        document.getElementById("eff").innerText = eff.toFixed(2)+"%";
+
+        if(d.energy > 1){
+          showToast("🔥 Great energy generated!");
+        }
+
+        let board = await fetch('/leaderboard-data').then(r=>r.json());
+
+        let list = document.getElementById("board");
+        list.innerHTML = "";
+
+        board.forEach((u,i)=>{
+          list.innerHTML += "<li>"+(i+1)+". "+u.name+" - "+u.energy.toFixed(2)+" J</li>";
+        });
       }
+
       setInterval(load,2000);
     </script>
 
@@ -140,15 +278,10 @@ app.get("/", auth, (req, res) => {
 // ---------------- HISTORY PAGE ----------------
 app.get("/history-page", auth, (req, res) => {
   res.send(`
-  <html>
-  <head>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-
-  <body>
     <h2>📊 Energy History</h2>
     <canvas id="chart"></canvas>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       async function load(){
         let data = await fetch('/history').then(r=>r.json());
@@ -163,8 +296,6 @@ app.get("/history-page", auth, (req, res) => {
       }
       load();
     </script>
-  </body>
-  </html>
   `);
 });
 
@@ -173,27 +304,32 @@ app.get("/challenge", auth, (req, res) => {
   let goal = users[currentUser].goal;
 
   res.send(`
-  <h2>🎯 Daily Challenge</h2>
-  <p>Goal: ${goal} J</p>
-  <p id="progress">0</p>
+    <h2>🎯 Challenge</h2>
+    <p>Goal: ${goal} J</p>
+    <p id="progress"></p>
 
-  <script>
-    async function load(){
-      let d = await fetch('/user-data').then(r=>r.json());
-      document.getElementById("progress").innerText =
-        "Progress: " + d.energy.toFixed(2) + " / ${goal} J";
-    }
-    setInterval(load,2000);
-  </script>
+    <script>
+      async function load(){
+        let d = await fetch('/user-data').then(r=>r.json());
+        document.getElementById("progress").innerText =
+          "Progress: " + (d.energy||0).toFixed(2) + " / ${goal} J";
+      }
+      setInterval(load,2000);
+    </script>
   `);
 });
 
-// ---------------- QR ----------------
+// ---------------- QR (FIXED) ----------------
 app.get("/qr", (req, res) => {
+  const url = req.protocol + "://" + req.get("host");
+
   res.send(`
     <h2>📱 Scan QR</h2>
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://mdpfinal.onrender.com/" />
+    <p>${url}</p>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${url}" />
   `);
 });
 
-app.listen(PORT, () => console.log("Server running"));
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
