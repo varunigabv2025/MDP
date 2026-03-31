@@ -26,7 +26,7 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
   const { user, pass } = req.body;
 
-  if (users[user]) return res.send("User exists");
+  if (users[user]) return res.send("User already exists");
 
   users[user] = {
     password: pass,
@@ -41,8 +41,8 @@ app.get("/login", (req, res) => {
   res.send(`
     <h2>Login</h2>
     <form method="POST">
-      <input name="user"/><br><br>
-      <input name="pass" type="password"/><br><br>
+      <input name="user" required/><br><br>
+      <input name="pass" type="password" required/><br><br>
       <button>Login</button>
     </form>
     <a href="/register">Register</a>
@@ -74,6 +74,12 @@ app.post("/update", (req, res) => {
   res.send("OK");
 });
 
+// ---------------- USER DATA ----------------
+app.get("/user-data", (req, res) => {
+  if (!currentUser) return res.json({});
+  res.json(users[currentUser].data);
+});
+
 // ---------------- LEADERBOARD ----------------
 app.get("/leaderboard-data", (req, res) => {
   let board = Object.entries(users).map(([name, u]) => ({
@@ -82,14 +88,7 @@ app.get("/leaderboard-data", (req, res) => {
   }));
 
   board.sort((a, b) => b.energy - a.energy);
-
   res.json(board);
-});
-
-// ---------------- USER DATA ----------------
-app.get("/user-data", (req, res) => {
-  if (!currentUser) return res.json({});
-  res.json(users[currentUser].data);
 });
 
 // ---------------- DASHBOARD ----------------
@@ -99,31 +98,20 @@ app.get("/", auth, (req, res) => {
   <head>
     <style>
       body {
-        font-family: Arial;
+        font-family: 'Segoe UI', sans-serif;
         margin:0;
-        background: var(--bg);
-        color: var(--text);
-        transition: 0.3s;
-      }
-
-      :root {
-        --bg: #f4f6fb;
-        --text: black;
-        --card: white;
+        background: linear-gradient(135deg,#5b6ee1,#7c3aed);
+        color:white;
       }
 
       .dark {
-        --bg: #121212;
-        --text: white;
-        --card: #1e1e1e;
+        background:#121212;
       }
 
       .header {
         display:flex;
         justify-content:space-between;
         padding:20px;
-        background:#5b6ee1;
-        color:white;
       }
 
       .container {
@@ -137,28 +125,53 @@ app.get("/", auth, (req, res) => {
       }
 
       .card {
-        background:var(--card);
-        padding:20px;
-        border-radius:12px;
         flex:1;
         min-width:200px;
+        background:rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        padding:20px;
+        border-radius:15px;
+        transition:0.3s;
+      }
+
+      .card:hover {
+        transform:translateY(-5px) scale(1.02);
       }
 
       .value {
-        font-size:24px;
+        font-size:28px;
         font-weight:bold;
+      }
+
+      .leaderboard {
+        margin-top:20px;
+      }
+
+      .leaderboard li {
+        padding:5px;
+        animation:fadeIn 0.5s ease;
       }
 
       button {
         padding:10px;
-        margin-top:10px;
         border:none;
         border-radius:8px;
         cursor:pointer;
       }
 
-      .leaderboard {
-        margin-top:20px;
+      @keyframes fadeIn {
+        from {opacity:0; transform:translateY(10px);}
+        to {opacity:1;}
+      }
+
+      .toast {
+        position:fixed;
+        bottom:20px;
+        right:20px;
+        background:#333;
+        padding:15px;
+        border-radius:10px;
+        display:none;
       }
     </style>
   </head>
@@ -166,13 +179,12 @@ app.get("/", auth, (req, res) => {
   <body id="body">
 
     <div class="header">
-      <h2>⚡ Energy Dashboard</h2>
+      <h2>⚡ Energy System</h2>
       <button onclick="toggleDark()">🌙</button>
     </div>
 
     <div class="container">
 
-      <!-- CARDS -->
       <div class="cards">
 
         <div class="card">
@@ -197,12 +209,11 @@ app.get("/", auth, (req, res) => {
 
         <div class="card">
           <div>Efficiency</div>
-          <div id="efficiency" class="value">0%</div>
+          <div id="eff" class="value">0%</div>
         </div>
 
       </div>
 
-      <!-- LEADERBOARD -->
       <div class="leaderboard card">
         <h3>🏆 Leaderboard</h3>
         <ul id="board"></ul>
@@ -210,9 +221,18 @@ app.get("/", auth, (req, res) => {
 
     </div>
 
+    <div id="toast" class="toast"></div>
+
     <script>
       function toggleDark(){
         document.body.classList.toggle("dark");
+      }
+
+      function showToast(msg){
+        let t = document.getElementById("toast");
+        t.innerText = msg;
+        t.style.display = "block";
+        setTimeout(()=> t.style.display="none",2000);
       }
 
       async function load(){
@@ -224,17 +244,20 @@ app.get("/", auth, (req, res) => {
         document.getElementById("voltage").innerText = d.voltage.toFixed(2);
         document.getElementById("steps").innerText = d.steps;
 
-        let efficiency = d.steps > 0 ? (d.energy / d.steps) * 100 : 0;
-        document.getElementById("efficiency").innerText = efficiency.toFixed(2) + "%";
+        let eff = d.steps > 0 ? (d.energy / d.steps)*100 : 0;
+        document.getElementById("eff").innerText = eff.toFixed(2)+"%";
 
-        // leaderboard
+        if(d.energy > 1){
+          showToast("🔥 Great energy generated!");
+        }
+
         let board = await fetch('/leaderboard-data').then(r=>r.json());
 
         let list = document.getElementById("board");
         list.innerHTML = "";
 
-        board.forEach((u, i) => {
-          list.innerHTML += "<li>" + (i+1) + ". " + u.name + " - " + u.energy.toFixed(2) + " J</li>";
+        board.forEach((u,i)=>{
+          list.innerHTML += "<li>"+(i+1)+". "+u.name+" - "+u.energy.toFixed(2)+" J</li>";
         });
       }
 
@@ -246,4 +269,6 @@ app.get("/", auth, (req, res) => {
   `);
 });
 
-app.listen(PORT, () => console.log("Server running"));
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
