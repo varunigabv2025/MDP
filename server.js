@@ -6,13 +6,12 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🔐 Simple login (hardcoded)
+// 🔐 LOGIN
 const USER = "admin";
 const PASS = "1234";
-
 let loggedIn = false;
 
-// Data
+// DATA STORE (ALL ZERO INIT)
 let dataStore = {
   P1: 0,
   P2: 0,
@@ -24,7 +23,7 @@ let dataStore = {
 
 let history = [];
 
-// ---------------- LOGIN PAGE ----------------
+// ---------------- LOGIN ----------------
 app.get("/login", (req, res) => {
   res.send(`
     <h2>Login</h2>
@@ -47,7 +46,7 @@ app.post("/login", (req, res) => {
   }
 });
 
-// Middleware protect pages
+// AUTH MIDDLEWARE
 function auth(req, res, next) {
   if (!loggedIn) return res.redirect("/login");
   next();
@@ -68,7 +67,7 @@ app.post("/update", (req, res) => {
 });
 
 app.get("/data", (req, res) => res.json(dataStore));
-app.get("/history", (req, res) => res.json(history);
+app.get("/history", (req, res) => res.json(history)); // ✅ FIXED
 
 app.get("/reset", (req, res) => {
   dataStore = { P1: 0, P2: 0, P3: 0, voltage: 0, power: 0, steps: 0 };
@@ -81,24 +80,65 @@ function layout(title, active, content) {
   return `
   <html>
   <head>
+    <title>${title}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-      body { margin:0; font-family:Arial; background:#f4f6fb; }
-      .nav { display:flex; justify-content:space-between; padding:15px; background:#5b6ee1; color:white; }
-      .nav a { margin-left:20px; color:white; text-decoration:none; }
-      .container { padding:20px; }
-      .card { background:white; padding:15px; border-radius:10px; margin:10px 0; }
-      .alert { background:#ffcccc; padding:10px; border-radius:8px; margin-bottom:10px; }
+      body {
+        margin:0;
+        font-family:'Segoe UI', sans-serif;
+        background:#f4f6fb;
+      }
+
+      .nav {
+        display:flex;
+        justify-content:space-between;
+        padding:15px 30px;
+        background:linear-gradient(135deg,#5b6ee1,#7c3aed);
+        color:white;
+      }
+
+      .nav-links a {
+        margin-left:20px;
+        text-decoration:none;
+        color:white;
+        opacity:0.7;
+      }
+
+      .nav-links a.active {
+        opacity:1;
+        border-bottom:2px solid white;
+      }
+
+      .container {
+        padding:20px;
+      }
+
+      .card {
+        background:white;
+        padding:15px;
+        border-radius:10px;
+        margin:10px 0;
+      }
+
+      .alert {
+        background:#ffcccc;
+        padding:10px;
+        border-radius:8px;
+        margin-bottom:10px;
+      }
     </style>
   </head>
+
   <body>
 
     <div class="nav">
       <div>⚡ Energy System</div>
-      <div>
-        <a href="/">Dashboard</a>
-        <a href="/analytics">Analytics</a>
-        <a href="/system">System</a>
+
+      <div class="nav-links">
+        <a href="/" class="${active==="dash"?"active":""}">Dashboard</a>
+        <a href="/analytics" class="${active==="ana"?"active":""}">Analytics</a>
+        <a href="/system" class="${active==="sys"?"active":""}">System</a>
       </div>
     </div>
 
@@ -136,7 +176,7 @@ app.get("/", auth, (req, res) => {
         alertBox.innerHTML = "";
 
         if (total < 0.001) {
-          alertBox.innerHTML = "<div class='alert'>⚠ Low Energy Detected</div>";
+          alertBox.innerHTML += "<div class='alert'>⚠ Low Energy</div>";
         }
 
         if (d.voltage > 3) {
@@ -152,6 +192,7 @@ app.get("/", auth, (req, res) => {
 // ---------------- ANALYTICS ----------------
 app.get("/analytics", auth, (req, res) => {
   res.send(layout("Analytics","ana",`
+
     <h2>Analytics</h2>
     <canvas id="chart"></canvas>
 
@@ -163,12 +204,17 @@ app.get("/analytics", auth, (req, res) => {
           type:'line',
           data:{
             labels:data.map(d=>d.time),
-            datasets:[{label:'Energy',data:data.map(d=>d.energy)}]
+            datasets:[{
+              label:'Energy',
+              data:data.map(d=>d.energy)
+            }]
           }
         });
       }
+
       load();
     </script>
+
   `));
 });
 
@@ -186,6 +232,7 @@ app.get("/system", auth, (req, res) => {
     <script>
       async function load(){
         let d = await fetch('/data').then(r=>r.json());
+
         document.getElementById("voltage").innerText = d.voltage;
         document.getElementById("power").innerText = d.power;
       }
@@ -196,7 +243,10 @@ app.get("/system", auth, (req, res) => {
 
       setInterval(load,2000);
     </script>
+
   `));
 });
 
-app.listen(PORT, () => console.log("Server running"));
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
