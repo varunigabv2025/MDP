@@ -1,7 +1,6 @@
 const express = require("express");
 const app = express();
 
-// 🔴 IMPORTANT: use Render port
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -13,7 +12,7 @@ let dataStore = {
   P3: 0
 };
 
-// Receive data from your laptop (Node.js)
+// Receive data from your laptop
 app.post("/update", (req, res) => {
   dataStore = req.body;
   res.send("OK");
@@ -24,44 +23,117 @@ app.get("/data", (req, res) => {
   res.json(dataStore);
 });
 
-// Dashboard UI
+// 🔥 DASHBOARD UI
 app.get("/", (req, res) => {
   res.send(`
-    <html>
-    <head>
-      <title>Energy Dashboard</title>
-    </head>
+  <html>
+  <head>
+    <title>Energy Dashboard</title>
 
-    <body style="font-family: Arial; text-align:center;">
+    <style>
+      body {
+        font-family: Arial;
+        background: linear-gradient(135deg, #4f46e5, #9333ea);
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+      }
 
-      <h1>⚡ Energy Harvesting System</h1>
+      h1 {
+        margin-top: 20px;
+      }
 
-      <h2 id="status">Status: Waiting</h2>
+      .status {
+        margin: 10px;
+        font-size: 20px;
+        font-weight: bold;
+      }
 
-      <h3>Person 1: <span id="p1">0</span></h3>
-      <h3>Person 2: <span id="p2">0</span></h3>
-      <h3>Person 3: <span id="p3">0</span></h3>
+      .container {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 40px;
+        flex-wrap: wrap;
+      }
 
-      <script>
-        async function updateData() {
-          const res = await fetch("/data");
-          const data = await res.json();
+      .card {
+        background: white;
+        color: black;
+        padding: 25px;
+        border-radius: 15px;
+        width: 220px;
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+      }
 
-          document.getElementById("p1").innerText = data.P1.toFixed(6);
-          document.getElementById("p2").innerText = data.P2.toFixed(6);
-          document.getElementById("p3").innerText = data.P3.toFixed(6);
+      .title {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
 
-          let total = data.P1 + data.P2 + data.P3;
+      .value {
+        font-size: 28px;
+        font-weight: bold;
+      }
 
-          document.getElementById("status").innerText =
-            total > 0 ? "Status: Connected" : "Status: Waiting";
-        }
+      .total {
+        margin-top: 30px;
+        font-size: 24px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
 
-        setInterval(updateData, 2000);
-      </script>
+  <body>
 
-    </body>
-    </html>
+    <h1>⚡ Energy Harvesting System</h1>
+    <div id="status" class="status">Status: Waiting</div>
+
+    <div class="container">
+
+      <div class="card">
+        <div class="title">Person 1</div>
+        <div id="p1" class="value">0</div>
+      </div>
+
+      <div class="card">
+        <div class="title">Person 2</div>
+        <div id="p2" class="value">0</div>
+      </div>
+
+      <div class="card">
+        <div class="title">Person 3</div>
+        <div id="p3" class="value">0</div>
+      </div>
+
+    </div>
+
+    <div id="total" class="total">Total Energy: 0 J</div>
+
+    <script>
+      async function updateData() {
+        const res = await fetch("/data");
+        const data = await res.json();
+
+        document.getElementById("p1").innerText = data.P1.toFixed(6);
+        document.getElementById("p2").innerText = data.P2.toFixed(6);
+        document.getElementById("p3").innerText = data.P3.toFixed(6);
+
+        let total = data.P1 + data.P2 + data.P3;
+
+        document.getElementById("total").innerText =
+          "Total Energy: " + total.toFixed(6) + " J";
+
+        document.getElementById("status").innerText =
+          total > 0 ? "Status: Connected" : "Status: Waiting";
+      }
+
+      setInterval(updateData, 2000);
+    </script>
+
+  </body>
+  </html>
   `);
 });
 
