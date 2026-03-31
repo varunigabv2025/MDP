@@ -1,6 +1,7 @@
 {
   "name": "mdp-project",
   "version": "1.0.0",
+  "description": "Piezo Energy Harvesting Dashboard",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
