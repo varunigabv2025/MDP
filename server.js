@@ -14,179 +14,163 @@ let dataStore = {
   steps: 0
 };
 
+// store history for analytics
+let history = [];
+
 app.post("/update", (req, res) => {
   dataStore = req.body;
+
+  history.push({
+    time: new Date().toLocaleTimeString(),
+    energy: dataStore.P1 + dataStore.P2 + dataStore.P3
+  });
+
+  if (history.length > 20) history.shift();
+
   res.send("OK");
 });
 
+app.get("/data", (req, res) => res.json(dataStore));
+app.get("/history", (req, res) => res.json(history));
+
 app.get("/reset", (req, res) => {
   dataStore = { P1: 0, P2: 0, P3: 0, voltage: 0, power: 0, steps: 0 };
+  history = [];
   res.send("Reset Done");
 });
 
-app.get("/data", (req, res) => {
-  res.json(dataStore);
-});
-
-app.get("/", (req, res) => {
-  res.send(`
+// ---------------- NAVBAR TEMPLATE ----------------
+function layout(content) {
+  return `
   <html>
   <head>
-    <title>Energy App</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
       body {
-        margin: 0;
-        font-family: 'Segoe UI', sans-serif;
+        margin:0;
+        font-family: Arial;
         background: #f5f6fa;
       }
-
-      .app {
-        max-width: 420px;
-        margin: auto;
-        padding: 15px;
+      .nav {
+        display:flex;
+        gap:20px;
+        padding:15px;
+        background:#5b6ee1;
       }
-
-      .header {
-        background: linear-gradient(135deg, #5b6ee1, #7c3aed);
-        color: white;
-        padding: 20px;
-        border-radius: 20px;
+      .nav a {
+        color:white;
+        text-decoration:none;
+        font-weight:bold;
       }
-
-      .status {
-        margin-top: 10px;
-        font-size: 14px;
-        opacity: 0.9;
+      .container {
+        padding:20px;
       }
-
       .card {
-        background: white;
-        border-radius: 15px;
-        padding: 15px;
-        margin-top: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      }
-
-      .title {
-        font-size: 14px;
-        color: gray;
-      }
-
-      .value {
-        font-size: 28px;
-        font-weight: bold;
-      }
-
-      .row {
-        display: flex;
-        justify-content: space-between;
-      }
-
-      button {
-        width: 100%;
-        padding: 12px;
-        border: none;
-        border-radius: 10px;
-        background: #5b6ee1;
-        color: white;
-        font-weight: bold;
-        margin-top: 10px;
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        margin:10px 0;
       }
     </style>
   </head>
-
   <body>
 
-    <div class="app">
-
-      <!-- HEADER -->
-      <div class="header">
-        <h2>⚡ Energy System</h2>
-        <div id="status" class="status">Disconnected</div>
-      </div>
-
-      <!-- ENERGY CARD -->
-      <div class="card">
-        <div class="title">Total Energy</div>
-        <div id="energy" class="value">0 J</div>
-      </div>
-
-      <!-- POWER + STEPS -->
-      <div class="card row">
-        <div>
-          <div class="title">Power</div>
-          <div id="power" class="value">0 W</div>
-        </div>
-        <div>
-          <div class="title">Steps</div>
-          <div id="steps" class="value">0</div>
-        </div>
-      </div>
-
-      <!-- SYSTEM INFO -->
-      <div class="card">
-        <div class="title">Voltage</div>
-        <div id="voltage" class="value">0 V</div>
-      </div>
-
-      <!-- GRAPH -->
-      <div class="card">
-        <div class="title">Energy Distribution</div>
-        <canvas id="chart"></canvas>
-      </div>
-
-      <!-- RESET BUTTON -->
-      <button onclick="resetData()">Reset System</button>
-
+    <div class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/analytics">Analytics</a>
+      <a href="/system">System</a>
     </div>
 
+    <div class="container">
+      ${content}
+    </div>
+
+  </body>
+  </html>
+  `;
+}
+
+// ---------------- PAGE 1: DASHBOARD ----------------
+app.get("/", (req, res) => {
+  res.send(layout(`
+    <h2>⚡ Dashboard</h2>
+
+    <div class="card">Total Energy: <span id="energy">0</span></div>
+    <div class="card">Voltage: <span id="voltage">0</span></div>
+    <div class="card">Power: <span id="power">0</span></div>
+    <div class="card">Steps: <span id="steps">0</span></div>
+
     <script>
-      let chart;
+      async function load(){
+        let d = await fetch('/data').then(r=>r.json());
+        let total = d.P1 + d.P2 + d.P3;
 
-      async function updateData() {
-        const res = await fetch("/data");
-        const data = await res.json();
+        document.getElementById("energy").innerText = total.toFixed(4);
+        document.getElementById("voltage").innerText = d.voltage.toFixed(2);
+        document.getElementById("power").innerText = d.power.toFixed(4);
+        document.getElementById("steps").innerText = d.steps;
+      }
+      setInterval(load,2000);
+    </script>
+  `));
+});
 
-        let total = data.P1 + data.P2 + data.P3;
+// ---------------- PAGE 2: ANALYTICS ----------------
+app.get("/analytics", (req, res) => {
+  res.send(layout(`
+    <h2>📊 Analytics</h2>
+    <canvas id="chart"></canvas>
 
-        document.getElementById("energy").innerText = total.toFixed(4) + " J";
-        document.getElementById("power").innerText = data.power.toFixed(4) + " W";
-        document.getElementById("voltage").innerText = data.voltage.toFixed(2) + " V";
-        document.getElementById("steps").innerText = data.steps;
+    <script>
+      async function load(){
+        let data = await fetch('/history').then(r=>r.json());
+
+        let labels = data.map(d=>d.time);
+        let values = data.map(d=>d.energy);
+
+        new Chart(document.getElementById("chart"), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{ label:'Energy', data: values }]
+          }
+        });
+      }
+      load();
+    </script>
+  `));
+});
+
+// ---------------- PAGE 3: SYSTEM ----------------
+app.get("/system", (req, res) => {
+  res.send(layout(`
+    <h2>⚙ System Info</h2>
+
+    <div class="card">Status: <span id="status">Disconnected</span></div>
+    <div class="card">Voltage: <span id="voltage">0</span></div>
+    <div class="card">Power: <span id="power">0</span></div>
+
+    <button onclick="reset()">Reset System</button>
+
+    <script>
+      async function load(){
+        let d = await fetch('/data').then(r=>r.json());
+        let total = d.P1 + d.P2 + d.P3;
 
         document.getElementById("status").innerText =
           total > 0 ? "Connected" : "Disconnected";
 
-        if (!chart) {
-          const ctx = document.getElementById("chart").getContext("2d");
-          chart = new Chart(ctx, {
-            type: "doughnut",
-            data: {
-              labels: ["P1", "P2", "P3"],
-              datasets: [{
-                data: [data.P1, data.P2, data.P3]
-              }]
-            }
-          });
-        } else {
-          chart.data.datasets[0].data = [data.P1, data.P2, data.P3];
-          chart.update();
-        }
+        document.getElementById("voltage").innerText = d.voltage;
+        document.getElementById("power").innerText = d.power;
       }
 
-      function resetData() {
-        fetch("/reset");
+      function reset(){
+        fetch('/reset');
       }
 
-      setInterval(updateData, 2000);
+      setInterval(load,2000);
     </script>
-
-  </body>
-  </html>
-  `);
+  `));
 });
 
 app.listen(PORT, () => console.log("Server running"));
