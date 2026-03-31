@@ -3,25 +3,39 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// 🔐 LOGIN
-const USER = "admin";
-const PASS = "1234";
-let loggedIn = false;
+// ---------------- USER STORAGE ----------------
+let users = {};   // { username: { password, data } }
+let currentUser = null;
 
-// DATA STORE (ALL ZERO INIT)
-let dataStore = {
-  P1: 0,
-  P2: 0,
-  P3: 0,
-  voltage: 0,
-  power: 0,
-  steps: 0
-};
+// ---------------- REGISTER ----------------
+app.get("/register", (req, res) => {
+  res.send(`
+    <h2>Register</h2>
+    <form method="POST" action="/register">
+      <input name="user" placeholder="Username" required/><br><br>
+      <input name="pass" type="password" placeholder="Password" required/><br><br>
+      <button type="submit">Register</button>
+    </form>
+    <br>
+    <a href="/login">Already have account? Login</a>
+  `);
+});
 
-let history = [];
+app.post("/register", (req, res) => {
+  const { user, pass } = req.body;
+
+  if (users[user]) return res.send("User already exists");
+
+  users[user] = {
+    password: pass,
+    data: { energy: 0, voltage: 0, power: 0, steps: 0 }
+  };
+
+  res.redirect("/login");
+});
 
 // ---------------- LOGIN ----------------
 app.get("/login", (req, res) => {
@@ -32,221 +46,121 @@ app.get("/login", (req, res) => {
       <input name="pass" type="password" placeholder="Password"/><br><br>
       <button type="submit">Login</button>
     </form>
+    <br>
+    <a href="/register">Create Account</a>
   `);
 });
 
 app.post("/login", (req, res) => {
   const { user, pass } = req.body;
 
-  if (user === USER && pass === PASS) {
-    loggedIn = true;
-    res.redirect("/");
-  } else {
-    res.send("Invalid login");
+  if (!users[user] || users[user].password !== pass) {
+    return res.send("Invalid login");
   }
+
+  currentUser = user;
+  res.redirect("/");
 });
 
-// AUTH MIDDLEWARE
+// ---------------- AUTH ----------------
 function auth(req, res, next) {
-  if (!loggedIn) return res.redirect("/login");
+  if (!currentUser) return res.redirect("/login");
   next();
 }
 
-// ---------------- DATA ----------------
+// ---------------- UPDATE DATA ----------------
 app.post("/update", (req, res) => {
-  dataStore = req.body;
+  if (!currentUser) return res.send("No user logged in");
 
-  history.push({
-    time: new Date().toLocaleTimeString(),
-    energy: dataStore.P1 + dataStore.P2 + dataStore.P3
-  });
-
-  if (history.length > 20) history.shift();
-
+  users[currentUser].data = req.body;
   res.send("OK");
 });
 
-app.get("/data", (req, res) => res.json(dataStore));
-app.get("/history", (req, res) => res.json(history)); // ✅ FIXED
-
-app.get("/reset", (req, res) => {
-  dataStore = { P1: 0, P2: 0, P3: 0, voltage: 0, power: 0, steps: 0 };
-  history = [];
-  res.send("Reset Done");
-});
-
-// ---------------- LAYOUT ----------------
-function layout(title, active, content) {
-  return `
+// ---------------- DASHBOARD ----------------
+app.get("/", auth, (req, res) => {
+  res.send(`
   <html>
   <head>
-    <title>${title}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
       body {
+        font-family: Arial;
+        background: linear-gradient(135deg, #5b6ee1, #7c3aed);
+        color: white;
         margin:0;
-        font-family:'Segoe UI', sans-serif;
-        background:#f4f6fb;
-      }
-
-      .nav {
-        display:flex;
-        justify-content:space-between;
-        padding:15px 30px;
-        background:linear-gradient(135deg,#5b6ee1,#7c3aed);
-        color:white;
-      }
-
-      .nav-links a {
-        margin-left:20px;
-        text-decoration:none;
-        color:white;
-        opacity:0.7;
-      }
-
-      .nav-links a.active {
-        opacity:1;
-        border-bottom:2px solid white;
-      }
-
-      .container {
         padding:20px;
       }
 
       .card {
-        background:white;
-        padding:15px;
-        border-radius:10px;
-        margin:10px 0;
+        background: white;
+        color: black;
+        padding: 20px;
+        margin: 10px;
+        border-radius: 12px;
       }
 
-      .alert {
-        background:#ffcccc;
-        padding:10px;
-        border-radius:8px;
-        margin-bottom:10px;
+      .container {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      h1 {
+        text-align:center;
       }
     </style>
   </head>
 
   <body>
 
-    <div class="nav">
-      <div>⚡ Energy System</div>
-
-      <div class="nav-links">
-        <a href="/" class="${active==="dash"?"active":""}">Dashboard</a>
-        <a href="/analytics" class="${active==="ana"?"active":""}">Analytics</a>
-        <a href="/system" class="${active==="sys"?"active":""}">System</a>
-      </div>
-    </div>
+    <h1>⚡ Your Energy Dashboard</h1>
 
     <div class="container">
-      ${content}
+
+      <div class="card">
+        <h3>Energy</h3>
+        <p id="energy">0</p>
+      </div>
+
+      <div class="card">
+        <h3>Voltage</h3>
+        <p id="voltage">0</p>
+      </div>
+
+      <div class="card">
+        <h3>Power</h3>
+        <p id="power">0</p>
+      </div>
+
+      <div class="card">
+        <h3>Steps</h3>
+        <p id="steps">0</p>
+      </div>
+
     </div>
+
+    <script>
+      async function load(){
+        let res = await fetch('/user-data');
+        let d = await res.json();
+
+        document.getElementById("energy").innerText = d.energy.toFixed(4);
+        document.getElementById("voltage").innerText = d.voltage.toFixed(2);
+        document.getElementById("power").innerText = d.power.toFixed(4);
+        document.getElementById("steps").innerText = d.steps;
+      }
+
+      setInterval(load,2000);
+    </script>
 
   </body>
   </html>
-  `;
-}
-
-// ---------------- DASHBOARD ----------------
-app.get("/", auth, (req, res) => {
-  res.send(layout("Dashboard","dash",`
-
-    <h2>Dashboard</h2>
-
-    <div id="alert"></div>
-
-    <div class="card">Energy: <span id="energy">0</span></div>
-    <div class="card">Power: <span id="power">0</span></div>
-    <div class="card">Voltage: <span id="voltage">0</span></div>
-
-    <script>
-      async function load(){
-        let d = await fetch('/data').then(r=>r.json());
-        let total = d.P1 + d.P2 + d.P3;
-
-        document.getElementById("energy").innerText = total.toFixed(4);
-        document.getElementById("power").innerText = d.power.toFixed(4);
-        document.getElementById("voltage").innerText = d.voltage.toFixed(2);
-
-        let alertBox = document.getElementById("alert");
-        alertBox.innerHTML = "";
-
-        if (total < 0.001) {
-          alertBox.innerHTML += "<div class='alert'>⚠ Low Energy</div>";
-        }
-
-        if (d.voltage > 3) {
-          alertBox.innerHTML += "<div class='alert'>⚠ High Voltage</div>";
-        }
-      }
-
-      setInterval(load,2000);
-    </script>
-  `));
+  `);
 });
 
-// ---------------- ANALYTICS ----------------
-app.get("/analytics", auth, (req, res) => {
-  res.send(layout("Analytics","ana",`
-
-    <h2>Analytics</h2>
-    <canvas id="chart"></canvas>
-
-    <script>
-      async function load(){
-        let data = await fetch('/history').then(r=>r.json());
-
-        new Chart(document.getElementById("chart"), {
-          type:'line',
-          data:{
-            labels:data.map(d=>d.time),
-            datasets:[{
-              label:'Energy',
-              data:data.map(d=>d.energy)
-            }]
-          }
-        });
-      }
-
-      load();
-    </script>
-
-  `));
+// ---------------- USER DATA ----------------
+app.get("/user-data", (req, res) => {
+  if (!currentUser) return res.json({});
+  res.json(users[currentUser].data);
 });
 
-// ---------------- SYSTEM ----------------
-app.get("/system", auth, (req, res) => {
-  res.send(layout("System","sys",`
-
-    <h2>System</h2>
-
-    <div class="card">Voltage: <span id="voltage">0</span></div>
-    <div class="card">Power: <span id="power">0</span></div>
-
-    <button onclick="reset()">Reset</button>
-
-    <script>
-      async function load(){
-        let d = await fetch('/data').then(r=>r.json());
-
-        document.getElementById("voltage").innerText = d.voltage;
-        document.getElementById("power").innerText = d.power;
-      }
-
-      function reset(){
-        fetch('/reset');
-      }
-
-      setInterval(load,2000);
-    </script>
-
-  `));
-});
-
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, () => console.log("Server running"));
