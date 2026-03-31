@@ -5,7 +5,6 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// 🔴 INITIAL ZERO DATA
 let dataStore = {
   P1: 0,
   P2: 0,
@@ -33,57 +32,42 @@ app.get("/", (req, res) => {
   res.send(`
   <html>
   <head>
-    <title>Energy Dashboard</title>
+    <title>Energy App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
       body {
         margin: 0;
         font-family: 'Segoe UI', sans-serif;
-        background: linear-gradient(135deg, #5b6ee1, #7c3aed);
-        color: white;
+        background: #f5f6fa;
       }
 
-      .container {
-        padding: 20px;
+      .app {
+        max-width: 420px;
+        margin: auto;
+        padding: 15px;
       }
 
       .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: rgba(255,255,255,0.1);
+        background: linear-gradient(135deg, #5b6ee1, #7c3aed);
+        color: white;
         padding: 20px;
         border-radius: 20px;
       }
 
       .status {
-        font-weight: bold;
-        padding: 8px 15px;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.2);
-      }
-
-      .cards {
-        display: flex;
-        gap: 20px;
-        margin-top: 20px;
-        flex-wrap: wrap;
+        margin-top: 10px;
+        font-size: 14px;
+        opacity: 0.9;
       }
 
       .card {
-        flex: 1;
-        min-width: 220px;
         background: white;
-        color: black;
-        padding: 20px;
         border-radius: 15px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-        transition: transform 0.2s;
-      }
-
-      .card:hover {
-        transform: translateY(-5px);
+        padding: 15px;
+        margin-top: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
       }
 
       .title {
@@ -92,92 +76,70 @@ app.get("/", (req, res) => {
       }
 
       .value {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: bold;
       }
 
-      .section {
+      .row {
         display: flex;
-        gap: 20px;
-        margin-top: 20px;
-        flex-wrap: wrap;
-      }
-
-      .box {
-        flex: 1;
-        min-width: 300px;
-        background: white;
-        color: black;
-        padding: 20px;
-        border-radius: 15px;
-      }
-
-      canvas {
-        margin-top: 10px;
+        justify-content: space-between;
       }
 
       button {
-        margin-top: 10px;
-        padding: 10px 15px;
+        width: 100%;
+        padding: 12px;
         border: none;
         border-radius: 10px;
-        cursor: pointer;
+        background: #5b6ee1;
+        color: white;
         font-weight: bold;
+        margin-top: 10px;
       }
-
-      .reset { background: red; color: white; }
     </style>
   </head>
 
   <body>
 
-    <div class="container">
+    <div class="app">
 
       <!-- HEADER -->
       <div class="header">
-        <h2>⚡ Energy Harvesting System</h2>
+        <h2>⚡ Energy System</h2>
         <div id="status" class="status">Disconnected</div>
       </div>
 
-      <!-- CARDS -->
-      <div class="cards">
+      <!-- ENERGY CARD -->
+      <div class="card">
+        <div class="title">Total Energy</div>
+        <div id="energy" class="value">0 J</div>
+      </div>
 
-        <div class="card">
-          <div class="title">TOTAL ENERGY</div>
-          <div id="energy" class="value">0</div>
-          <small>Joules</small>
+      <!-- POWER + STEPS -->
+      <div class="card row">
+        <div>
+          <div class="title">Power</div>
+          <div id="power" class="value">0 W</div>
         </div>
-
-        <div class="card">
-          <div class="title">CURRENT POWER</div>
-          <div id="power" class="value">0</div>
-          <small>Watts</small>
-        </div>
-
-        <div class="card">
-          <div class="title">TOTAL STEPS</div>
+        <div>
+          <div class="title">Steps</div>
           <div id="steps" class="value">0</div>
-          <small>steps</small>
         </div>
-
       </div>
 
-      <!-- GRAPH + INFO -->
-      <div class="section">
-
-        <div class="box">
-          <h3>Energy Generation</h3>
-          <canvas id="chart"></canvas>
-        </div>
-
-        <div class="box">
-          <h3>System Information</h3>
-          <p>Voltage: <span id="voltage">0</span> V</p>
-          <p>Power: <span id="power2">0</span> W</p>
-          <button class="reset" onclick="resetData()">Reset</button>
-        </div>
-
+      <!-- SYSTEM INFO -->
+      <div class="card">
+        <div class="title">Voltage</div>
+        <div id="voltage" class="value">0 V</div>
       </div>
+
+      <!-- GRAPH -->
+      <div class="card">
+        <div class="title">Energy Distribution</div>
+        <canvas id="chart"></canvas>
+      </div>
+
+      <!-- RESET BUTTON -->
+      <button onclick="resetData()">Reset System</button>
 
     </div>
 
@@ -190,10 +152,9 @@ app.get("/", (req, res) => {
 
         let total = data.P1 + data.P2 + data.P3;
 
-        document.getElementById("energy").innerText = total.toFixed(4);
-        document.getElementById("power").innerText = data.power.toFixed(4);
-        document.getElementById("power2").innerText = data.power.toFixed(4);
-        document.getElementById("voltage").innerText = data.voltage.toFixed(2);
+        document.getElementById("energy").innerText = total.toFixed(4) + " J";
+        document.getElementById("power").innerText = data.power.toFixed(4) + " W";
+        document.getElementById("voltage").innerText = data.voltage.toFixed(2) + " V";
         document.getElementById("steps").innerText = data.steps;
 
         document.getElementById("status").innerText =
@@ -202,14 +163,11 @@ app.get("/", (req, res) => {
         if (!chart) {
           const ctx = document.getElementById("chart").getContext("2d");
           chart = new Chart(ctx, {
-            type: "line",
+            type: "doughnut",
             data: {
-              labels: ["Person 1", "Person 2", "Person 3"],
+              labels: ["P1", "P2", "P3"],
               datasets: [{
-                label: "Energy",
-                data: [data.P1, data.P2, data.P3],
-                borderColor: "blue",
-                fill: false
+                data: [data.P1, data.P2, data.P3]
               }]
             }
           });
