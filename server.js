@@ -85,18 +85,25 @@ app.post("/update", (req, res) => {
 app.get("/user-data", (req, res) => res.json(users[currentUser]?.data || {}));
 app.get("/history", (req, res) => res.json(users[currentUser]?.history || []));
 
-// ---------------- SIDEBAR LAYOUT ----------------
+// ---------------- LAYOUT WITH DARK MODE ----------------
 function layout(content, active) {
   return `
   <html>
   <head>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
       body {
         margin:0;
         font-family:'Segoe UI';
         display:flex;
         background:#f4f6fb;
+        transition:0.3s;
+      }
+
+      body.dark {
+        background:#121212;
+        color:white;
       }
 
       .sidebar {
@@ -107,10 +114,6 @@ function layout(content, active) {
         padding:20px;
       }
 
-      .sidebar h2 {
-        margin-bottom:20px;
-      }
-
       .sidebar a {
         display:block;
         color:white;
@@ -118,7 +121,6 @@ function layout(content, active) {
         margin:10px 0;
         padding:10px;
         border-radius:8px;
-        background:${active==="none"?"transparent":"transparent"};
       }
 
       .sidebar a.active {
@@ -129,6 +131,12 @@ function layout(content, active) {
       .main {
         flex:1;
         padding:20px;
+      }
+
+      .topbar {
+        display:flex;
+        justify-content:space-between;
+        margin-bottom:20px;
       }
 
       .cards {
@@ -145,14 +153,25 @@ function layout(content, active) {
         min-width:200px;
       }
 
+      body.dark .card {
+        background:#1e1e1e;
+      }
+
       .value {
         font-size:26px;
         font-weight:bold;
       }
+
+      button {
+        padding:8px 12px;
+        border:none;
+        border-radius:8px;
+        cursor:pointer;
+      }
     </style>
   </head>
 
-  <body>
+  <body id="body">
 
     <div class="sidebar">
       <h2>⚡ Energy</h2>
@@ -163,8 +182,21 @@ function layout(content, active) {
     </div>
 
     <div class="main">
+
+      <div class="topbar">
+        <h2>${active.toUpperCase()}</h2>
+        <button onclick="toggleDark()">🌙 Toggle</button>
+      </div>
+
       ${content}
+
     </div>
+
+    <script>
+      function toggleDark(){
+        document.body.classList.toggle("dark");
+      }
+    </script>
 
   </body>
   </html>
@@ -174,8 +206,6 @@ function layout(content, active) {
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, (req, res) => {
   res.send(layout(`
-    <h2>Dashboard</h2>
-
     <div class="cards">
       <div class="card">Energy<br><span id="energy" class="value">0</span></div>
       <div class="card">Power<br><span id="power" class="value">0</span></div>
@@ -197,7 +227,6 @@ app.get("/", auth, (req, res) => {
 // ---------------- HISTORY ----------------
 app.get("/history-page", auth, (req, res) => {
   res.send(layout(`
-    <h2>Analytics</h2>
     <canvas id="chart"></canvas>
 
     <script>
@@ -222,7 +251,6 @@ app.get("/challenge", auth, (req, res) => {
   let goal = users[currentUser].goal;
 
   res.send(layout(`
-    <h2>Goal</h2>
     <p>Target: ${goal} J</p>
     <p id="progress"></p>
 
@@ -242,7 +270,6 @@ app.get("/qr", (req, res) => {
   const url = req.protocol + "://" + req.get("host");
 
   res.send(layout(`
-    <h2>Scan QR</h2>
     <p>${url}</p>
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${url}" />
   `,"qr"));
