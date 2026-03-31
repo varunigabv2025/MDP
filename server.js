@@ -26,7 +26,7 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
   const { user, pass } = req.body;
 
-  if (users[user]) return res.send("User already exists");
+  if (users[user]) return res.send("User exists");
 
   users[user] = {
     password: pass,
@@ -43,8 +43,8 @@ app.get("/login", (req, res) => {
   res.send(`
     <h2>Login</h2>
     <form method="POST">
-      <input name="user" required/><br><br>
-      <input name="pass" type="password" required/><br><br>
+      <input name="user"/><br><br>
+      <input name="pass" type="password"/><br><br>
       <button>Login</button>
     </form>
     <a href="/register">Register</a>
@@ -106,119 +106,61 @@ app.get("/history", (req, res) => {
   res.json(users[currentUser]?.history || []);
 });
 
+// ---------------- COMMON NAVBAR ----------------
+function navbar() {
+  return `
+    <div style="padding:15px;background:#5b6ee1;color:white;display:flex;justify-content:space-between;">
+      <div>⚡ Energy App</div>
+      <div>
+        <a href="/" style="color:white;margin-right:10px;">Dashboard</a>
+        <a href="/history-page" style="color:white;margin-right:10px;">History</a>
+        <a href="/challenge" style="color:white;margin-right:10px;">Goal</a>
+        <a href="/qr" style="color:white;">QR</a>
+      </div>
+    </div>
+  `;
+}
+
 // ---------------- DASHBOARD ----------------
 app.get("/", auth, (req, res) => {
   res.send(`
   <html>
   <head>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
       body {
-        font-family: 'Segoe UI', sans-serif;
+        font-family:'Segoe UI';
         margin:0;
         background: linear-gradient(135deg,#5b6ee1,#7c3aed);
         color:white;
       }
-
-      .dark {
-        background:#121212;
-      }
-
-      .nav {
-        padding:15px;
-        display:flex;
-        justify-content:space-between;
-      }
-
-      .nav a {
-        color:white;
-        margin-left:15px;
-        text-decoration:none;
-      }
-
-      .container {
-        padding:20px;
-      }
-
-      .cards {
-        display:flex;
-        gap:20px;
-        flex-wrap:wrap;
-      }
-
+      .dark { background:#121212; }
+      .container { padding:20px; }
+      .cards { display:flex; gap:20px; flex-wrap:wrap; }
       .card {
-        flex:1;
-        min-width:200px;
         background:rgba(255,255,255,0.15);
-        backdrop-filter: blur(10px);
         padding:20px;
         border-radius:15px;
-        transition:0.3s;
+        flex:1;
+        min-width:200px;
       }
-
-      .card:hover {
-        transform:translateY(-5px) scale(1.02);
-      }
-
-      .value {
-        font-size:28px;
-        font-weight:bold;
-      }
-
-      .toast {
-        position:fixed;
-        bottom:20px;
-        right:20px;
-        background:#333;
-        padding:15px;
-        border-radius:10px;
-        display:none;
-      }
+      .value { font-size:28px; font-weight:bold; }
     </style>
   </head>
 
   <body id="body">
 
-    <div class="nav">
-      <div>⚡ Energy Dashboard</div>
-      <div>
-        <a href="/history-page">History</a>
-        <a href="/challenge">Challenge</a>
-        <a href="/qr">QR</a>
-        <button onclick="toggleDark()">🌙</button>
-      </div>
-    </div>
+    ${navbar()}
 
     <div class="container">
 
+      <button onclick="toggleDark()">🌙 Toggle</button>
+
       <div class="cards">
-
-        <div class="card">
-          <div>Energy</div>
-          <div id="energy" class="value">0</div>
-        </div>
-
-        <div class="card">
-          <div>Power</div>
-          <div id="power" class="value">0</div>
-        </div>
-
-        <div class="card">
-          <div>Voltage</div>
-          <div id="voltage" class="value">0</div>
-        </div>
-
-        <div class="card">
-          <div>Steps</div>
-          <div id="steps" class="value">0</div>
-        </div>
-
-        <div class="card">
-          <div>Efficiency</div>
-          <div id="eff" class="value">0%</div>
-        </div>
-
+        <div class="card"><div>Energy</div><div id="energy" class="value">0</div></div>
+        <div class="card"><div>Power</div><div id="power" class="value">0</div></div>
+        <div class="card"><div>Voltage</div><div id="voltage" class="value">0</div></div>
+        <div class="card"><div>Steps</div><div id="steps" class="value">0</div></div>
+        <div class="card"><div>Efficiency</div><div id="eff" class="value">0%</div></div>
       </div>
 
       <div class="card">
@@ -228,18 +170,9 @@ app.get("/", auth, (req, res) => {
 
     </div>
 
-    <div id="toast" class="toast"></div>
-
     <script>
       function toggleDark(){
         document.body.classList.toggle("dark");
-      }
-
-      function showToast(msg){
-        let t = document.getElementById("toast");
-        t.innerText = msg;
-        t.style.display = "block";
-        setTimeout(()=> t.style.display="none",2000);
       }
 
       async function load(){
@@ -253,12 +186,7 @@ app.get("/", auth, (req, res) => {
         let eff = d.steps > 0 ? (d.energy / d.steps)*100 : 0;
         document.getElementById("eff").innerText = eff.toFixed(2)+"%";
 
-        if(d.energy > 1){
-          showToast("🔥 Great energy generated!");
-        }
-
         let board = await fetch('/leaderboard-data').then(r=>r.json());
-
         let list = document.getElementById("board");
         list.innerHTML = "";
 
@@ -278,7 +206,12 @@ app.get("/", auth, (req, res) => {
 // ---------------- HISTORY PAGE ----------------
 app.get("/history-page", auth, (req, res) => {
   res.send(`
-    <h2>📊 Energy History</h2>
+  <html>
+  <body>
+
+    ${navbar()}
+
+    <h2>📊 History</h2>
     <canvas id="chart"></canvas>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -290,12 +223,15 @@ app.get("/history-page", auth, (req, res) => {
           type:'line',
           data:{
             labels:data.map(d=>d.time),
-            datasets:[{label:'Energy', data:data.map(d=>d.energy)}]
+            datasets:[{data:data.map(d=>d.energy)}]
           }
         });
       }
       load();
     </script>
+
+  </body>
+  </html>
   `);
 });
 
@@ -304,8 +240,13 @@ app.get("/challenge", auth, (req, res) => {
   let goal = users[currentUser].goal;
 
   res.send(`
-    <h2>🎯 Challenge</h2>
-    <p>Goal: ${goal} J</p>
+  <html>
+  <body>
+
+    ${navbar()}
+
+    <h2>🎯 Goal</h2>
+    <p>Target: ${goal} J</p>
     <p id="progress"></p>
 
     <script>
@@ -316,20 +257,29 @@ app.get("/challenge", auth, (req, res) => {
       }
       setInterval(load,2000);
     </script>
+
+  </body>
+  </html>
   `);
 });
 
-// ---------------- QR (FIXED) ----------------
+// ---------------- QR ----------------
 app.get("/qr", (req, res) => {
   const url = req.protocol + "://" + req.get("host");
 
   res.send(`
+  <html>
+  <body>
+
+    ${navbar()}
+
     <h2>📱 Scan QR</h2>
     <p>${url}</p>
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${url}" />
+
+  </body>
+  </html>
   `);
 });
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, () => console.log("Server running"));
