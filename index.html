@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piezoelectric Energy Harvesting Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    <h1>Energy Harvesting System</h1>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">System Status</span>
+                        <span class="stat-value status-active" id="systemStatus">Active</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard">
+            <!-- Energy Overview Section -->
+            <section class="energy-overview">
+                <div class="overview-cards">
+                    <div class="energy-card total-energy">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                            </svg>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Energy Generated</h3>
+                            <div class="energy-value">
+                                <span id="totalEnergy">0.00</span>
+                                <span class="unit">Joules</span>
+                            </div>
+                            <div class="energy-trend">
+                                <span class="trend-indicator positive" id="energyTrend">↑</span>
+                                <span id="energyRate">0.00</span> J/min
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="energy-card current-power">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                        </div>
+                        <div class="card-content">
+                            <h3>Current Power</h3>
+                            <div class="energy-value">
+                                <span id="currentPower">0.00</span>
+                                <span class="unit">Watts</span>
+                            </div>
+                            <div class="energy-trend">
+                                <span class="trend-indicator" id="powerTrend">→</span>
+                                Real-time
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="energy-card step-count">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16.21 16H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8l6 6v5a2 2 0 0 1-2 2z"/>
+                                <path d="M3 12v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>
+                            </svg>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Steps Detected</h3>
+                            <div class="energy-value">
+                                <span id="totalSteps">0</span>
+                                <span class="unit">steps</span>
+                            </div>
+                            <div class="energy-trend">
+                                <span class="trend-indicator" id="stepTrend">→</span>
+                                <span id="stepRate">0.0</span> steps/min
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Energy Generation Over Time</h3>
+                        <div class="chart-controls">
+                            <button class="chart-btn active" data-range="1h">1H</button>
+                            <button class="chart-btn" data-range="6h">6H</button>
+                            <button class="chart-btn" data-range="24h">24H</button>
+                            <button class="chart-btn" data-range="7d">7D</button>
+                        </div>
+                    </div>
+                    <canvas id="energyChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Power Output</h3>
+                        <div class="chart-controls">
+                            <button class="chart-btn active" data-type="realtime">Real-time</button>
+                            <button class="chart-btn" data-type="average">Average</button>
+                        </div>
+                    </div>
+                    <canvas id="powerChart"></canvas>
+                </div>
+            </section>
+
+            <!-- User Contributions Section -->
+            <section class="user-section">
+                <div class="section-header">
+                    <h2>User Contributions</h2>
+                    <div class="section-controls">
+                        <button class="btn btn-primary" id="addUserBtn">Add User</button>
+                        <button class="btn btn-secondary" id="simulationBtn">Simulation Mode</button>
+                        <button class="btn btn-info" id="calibrateBtn">Calibrate</button>
+                        <button class="btn btn-warning" id="resetBtn">Reset</button>
+                        <button class="btn btn-success" id="testBtn">Test System</button>
+                    </div>
+                </div>
+
+                <div class="user-stats">
+                    <div class="user-stat-card">
+                        <h4>Total Users</h4>
+                        <span class="stat-number" id="totalUsers">0</span>
+                    </div>
+                    <div class="user-stat-card">
+                        <h4>Active Users</h4>
+                        <span class="stat-number" id="activeUsers">0</span>
+                    </div>
+                    <div class="user-stat-card">
+                        <h4>Avg. Contribution</h4>
+                        <span class="stat-number" id="avgContribution">0.00 J</span>
+                    </div>
+                </div>
+
+                <div class="user-list" id="userList">
+                    <!-- User cards will be dynamically added here -->
+                </div>
+            </section>
+
+            <!-- System Info Section -->
+            <section class="system-info">
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>System Information</h4>
+                        <div class="info-item">
+                            <span class="info-label">Sensor Status:</span>
+                            <span class="info-value status-good" id="sensorStatus">Connected</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Storage Level:</span>
+                            <span class="info-value" id="storageLevel">0%</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Efficiency:</span>
+                            <span class="info-value" id="efficiency">0%</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Uptime:</span>
+                            <span class="info-value" id="uptime">00:00:00</span>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>Recent Activity</h4>
+                        <div class="activity-log" id="activityLog">
+                            <div class="activity-item">
+                                <span class="activity-time">00:00:00</span>
+                                <span class="activity-message">System initialized</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userName">User Name</label>
+                        <input type="text" id="userName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">Email (optional)</label>
+                        <input type="email" id="userEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="initialEnergy">Initial Energy (Joules)</label>
+                        <input type="number" id="initialEnergy" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelAddUser">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
